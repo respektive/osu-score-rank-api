@@ -1,0 +1,9 @@
+{
+    "osu": {
+        "id": 1337,
+        "secret": "someverylongstring"
+    },
+    "api": {
+        "port": 727
+    }
+}

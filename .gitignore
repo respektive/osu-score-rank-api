@@ -1,0 +1,7 @@
+config.json
+
+# Node Modules
+node_modules
+
+# NPM package-lock
+package-lock.json
