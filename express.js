@@ -1,4 +1,5 @@
 const express = require('express');
+const morgan = require('morgan')
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
@@ -51,6 +52,7 @@ async function main() {
         console.log(`api listening on port ${port}`);
     });
 
+    api.use(morgan('dev'))
     api.use(require('express-status-monitor')());
 
     api.get('/rank/*', async (req, res) => {
