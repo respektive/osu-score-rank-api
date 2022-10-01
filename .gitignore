@@ -1,4 +1,8 @@
+# Config
 config.json
+
+# Redis dump
+dump.rdb
 
 # Node Modules
 node_modules

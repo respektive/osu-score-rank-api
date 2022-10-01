@@ -51,6 +51,8 @@ async function main() {
         console.log(`api listening on port ${port}`);
     });
 
+    api.use(require('express-status-monitor')());
+
     api.get('/rank/*', async (req, res) => {
         let mode = await parseMode(req.query.mode, req.query.m);
 
