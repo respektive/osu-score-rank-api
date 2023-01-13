@@ -6,6 +6,7 @@ const config = require("./config");
 let token;
 let entries = 0;
 let refresh = 0;
+let user_ids = [];
 let retries = {
     osu: {
         score: 0
@@ -59,6 +60,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
         await res.data.ranking.forEach(async elem => {
             i++
             entries++
+            user_ids.push(elem.user.id);
 
             await redisClient.zadd(`score_${mode}`, elem.ranked_score, elem.user.id);
             await redisClient.set(`user_${elem.user.id}`, elem.user.username);
@@ -72,9 +74,17 @@ async function fullRankingsUpdate(mode, type, cursor) {
             retries[mode][type] = 0;
             console.log("Added a total of " + entries + " to the db score_" + mode);
         } else {
-            await redisClient.zremrangebyrank(`score_${mode}`, 0, -10000);
+            // Remove restricted and otherwise deleted users from the api.
+            const redis_users = await redisClient.zrange(`score_${mode}`, 0, -1);
+            for (id of redis_users) {
+                if (!user_ids.includes(Number(id))) {
+                    await redisClient.zrem(`score_${mode}`, id);
+                    console.log("Removed user_id:", id);
+                }
+            }
             console.log("Finished iterating for a total of " + entries + " Entries!");
             entries = entries - 10000;
+            user_ids = [];
         }
     }).catch(async err => {
         if (retries[mode][type] < 4) {
