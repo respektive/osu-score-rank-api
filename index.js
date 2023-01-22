@@ -18,6 +18,7 @@ let retries = {
         score: 0
     }
 }
+let done = true;
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -83,8 +84,9 @@ async function fullRankingsUpdate(mode, type, cursor) {
                 }
             }
             console.log("Finished iterating for a total of " + entries + " Entries!");
-            entries = entries - 10000;
+            entries = 0;
             user_ids = [];
+            done = true;
         }
     }).catch(async err => {
         if (retries[mode][type] < 4) {
@@ -96,6 +98,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
         } else {
             console.log("Max retries reached, giving up.");
             retries[mode][type] = 0;
+            done = true;
         }
     });
 }
@@ -103,6 +106,11 @@ async function fullRankingsUpdate(mode, type, cursor) {
 let m = -1;
 
 function updateAll() {
+    if (!done) {
+        console.log("fetching not done yet, waiting for next interval.")
+        return
+    }
+
     m++
     if(m > 3){
         m = 0
@@ -112,18 +120,22 @@ function updateAll() {
         default:
         case 0:
             fullRankingsUpdate("osu", "score", 1);
+            done = false;
             console.log("Starting fetch for osu!");
             break;
         case 1:
             fullRankingsUpdate("taiko", "score", 1);
+            done = false;
             console.log("Starting fetch for osu!taiko");
             break;
         case 2:
             fullRankingsUpdate("fruits", "score", 1);
+            done = false;
             console.log("Starting fetch for osu!catch");
             break;        
         case 3:
             fullRankingsUpdate("mania", "score", 1);
+            done = false;
             console.log("Starting fetch for osu!mania");
             break;
     }
