@@ -78,39 +78,51 @@ async function main() {
         }
     });
 
-    api.get('/u/*', async (req, res) => {
+    api.get('/u/:users', async (req, res) => {
 
-        let mode = await parseMode(req.query.mode, req.query.m);
-        let user_id;
-
+        let mode = parseMode(req.query.mode, req.query.m);
+        let users = req.params.users.split(',');
+    
         if (["username", "user_id"].includes(req.query.s) == -1 || req.query.s == undefined) {
             req.query.s = "user_id"
         }
-
-        if(req.query.s == "username") {
-            user_id = await redisClient.get(`user_${req.path.split("/").pop()}`);
-        } else {
-            user_id = req.path.split("/").pop();
+    
+        let results = [];
+    
+        if (users.length > 100) {
+            res.status(400);
+            res.json({ error: 'Too many users. Max limit is 100.' });
+            return;
         }
-
-        let score = await redisClient.zscore(`score_${mode}`, user_id);
-        let rank = await redisClient.zrevrank(`score_${mode}`, user_id);
-        let username = await redisClient.get(`user_${user_id}`);
-        let data = {
-            rank: rank + 1,
-            user_id: parseInt(user_id),
-            username: username,
-            score: parseInt(score)
-        }
-
-        if(isNaN(data.score)) {
-            res.status(200);
-            res.json([{ rank: 0, user_id: 0, username: 0, score: 0 }]);
-        } else {
-            res.status(200);
-            res.json([data]);
-        }
-    });
+    
+        await Promise.all(users.map(async (user) => {
+            let user_id;
+            if (req.query.s == "username") {
+                user_id = await redisClient.get(`user_${user}`);
+            } else {
+                user_id = user;
+            }
+            let [score, rank, usernameValue] = await Promise.all([
+                redisClient.zscore(`score_${mode}`, user_id),
+                redisClient.zrevrank(`score_${mode}`, user_id),
+                redisClient.get(`user_${user_id}`)
+            ]);
+            let data = {
+                rank: rank + 1,
+                user_id: parseInt(user_id),
+                username: usernameValue,
+                score: parseInt(score)
+            }
+            if (isNaN(data.score)) {
+                results.push({ rank: 0, user_id: 0, username: 0, score: 0 });
+            } else {
+                results.push(data);
+            }
+        }));
+    
+        res.status(200);
+        res.json(results);
+    });    
 
     api.get('/rankings', async (req, res) => {
 
