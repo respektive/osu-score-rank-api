@@ -92,7 +92,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
                     console.log("Added new highest rank", rank+1, "for user", elem.user.username, "and mode", mode);
                 }
             } finally {
-                if (conn) return conn.end();
+                if (conn) conn.end();
             }
         });
 
