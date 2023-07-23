@@ -88,7 +88,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
 
                 const rank = await redisClient.zrevrank(`score_${mode}`, elem.user.id);
                 if (!rows[0] || rank+1 > rows[0].rank ) {
-                    const res = await conn.query("INSERT INTO osu_score_rank_highest (user_id, mode, rank) VALUES (?, ?, ?)", [elem.user.id, MODES[mode], rank+1])
+                    const res = await conn.query("INSERT INTO osu_score_rank_highest (user_id, mode, rank) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rank=?", [elem.user.id, MODES[mode], rank+1, rank+1])
                     console.log("Added new highest rank", rank+1, "for user", elem.user.username, "and mode", mode);
                 }
             } finally {
