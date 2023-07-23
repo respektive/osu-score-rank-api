@@ -2,6 +2,21 @@ const axios = require("axios");
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
+const mariadb = require('mariadb');
+const pool = mariadb.createPool({
+     host: config.db.host, 
+     user: config.db.user, 
+     password: config.db.pw,
+     database: config.db.db,
+     connectionLimit: 5
+});
+
+const MODES = {
+    "osu": 0,
+    "taiko": 1,
+    "fruits": 2,
+    "mania": 3,
+}
 
 let token;
 let entries = 0;
@@ -47,6 +62,7 @@ async function refreshToken() {
 }
 
 async function fullRankingsUpdate(mode, type, cursor) {
+    let conn;
     if (Date.now() > refresh - 5 * 60 * 1000) {
         token = await refreshToken();
     }
@@ -66,6 +82,18 @@ async function fullRankingsUpdate(mode, type, cursor) {
             await redisClient.zadd(`score_${mode}`, elem.ranked_score, elem.user.id);
             await redisClient.set(`user_${elem.user.id}`, elem.user.username);
             await redisClient.set(`user_${elem.user.username}`, elem.user.id);
+            try {
+                conn = await pool.getConnection();
+                const rows = await conn.query("SELECT rank FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?", [elem.user.id, MODES[mode]]);
+
+                const rank = await redisClient.zrevrank(`score_${mode}`, elem.user.id);
+                if (!rows[0] || rank+1 > rows[0].rank ) {
+                    const res = await conn.query("INSERT INTO osu_score_rank_highest (user_id, mode, rank) VALUES (?, ?, ?)", [elem.user.id, MODES[mode], rank+1])
+                    console.log("Added new highest rank", rank+1, "for user", elem.user.username, "and mode", mode);
+                }
+            } finally {
+                if (conn) return conn.end();
+            }
         });
 
         if (res.data.cursor != null) {

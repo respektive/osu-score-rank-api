@@ -5,5 +5,11 @@
     },
     "api": {
         "port": 727
+    },
+    "db": {
+        "host": "localhost",
+        "user": "score",
+        "pw": "pw",
+        "db": "osu"
     }
 }
