@@ -3,6 +3,21 @@ const morgan = require('morgan')
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
+const mariadb = require('mariadb');
+const pool = mariadb.createPool({
+     host: config.db.host, 
+     user: config.db.user, 
+     password: config.db.pw,
+     database: config.db.db,
+     connectionLimit: 5
+});
+
+const MODES = {
+    "osu": 0,
+    "taiko": 1,
+    "fruits": 2,
+    "mania": 3,
+}
 
 const api = express();
 const port = config.api.port;
@@ -79,7 +94,7 @@ async function main() {
     });
 
     api.get('/u/:users', async (req, res) => {
-
+        let conn;
         let mode = parseMode(req.query.mode, req.query.m);
         let users = req.params.users.split(',');
     
@@ -102,6 +117,14 @@ async function main() {
             } else {
                 user_id = user;
             }
+            let rows;
+            try {
+                conn = await pool.getConnection();
+                rows = await conn.query("SELECT * FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?", [user_id, MODES[mode]]);
+            } finally {
+                if (conn) conn.end();
+            }
+            let rank_highest = {rank: rows[0]?.rank ?? 0, updated_at: rows[0]?.updated_at ?? null}
             let [score, rank, usernameValue] = await Promise.all([
                 redisClient.zscore(`score_${mode}`, user_id),
                 redisClient.zrevrank(`score_${mode}`, user_id),
@@ -111,7 +134,8 @@ async function main() {
                 rank: rank + 1,
                 user_id: parseInt(user_id),
                 username: usernameValue,
-                score: parseInt(score)
+                score: parseInt(score),
+                rank_highest: rank_highest ?? null,
             }
             if (isNaN(data.score)) {
                 results.push({ rank: 0, user_id: 0, username: 0, score: 0 });
