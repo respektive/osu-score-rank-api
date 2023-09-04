@@ -61,6 +61,19 @@ function isEmpty(object) {
     return true;
 }
 
+async function getPeakRank(user_id, mode) {
+    let conn;
+    let rows;
+    try {
+        conn = await pool.getConnection();
+        rows = await conn.query("SELECT * FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?", [user_id, MODES[mode]]);
+    } finally {
+        if (conn) conn.end();
+    }
+    let rank_highest = {rank: rows[0]?.rank ?? 0, updated_at: rows[0]?.updated_at ?? null}
+    return rank_highest;
+}
+
 async function main() {
 
     api.listen(port, () => {
@@ -82,6 +95,7 @@ async function main() {
             data["user_id"] = parseInt(rank_user[i])
             data["username"] = await redisClient.get(`user_${rank_user[i]}`);
             data["score"] = parseInt(rank_user[i+1])
+            data["rank_highest"] = await getPeakRank(rank_user[i], mode);
         }
 
         if(isEmpty(data)) {
@@ -94,7 +108,6 @@ async function main() {
     });
 
     api.get('/u/:users', async (req, res) => {
-        let conn;
         let mode = parseMode(req.query.mode, req.query.m);
         let users = req.params.users.split(',');
     
@@ -117,14 +130,9 @@ async function main() {
             } else {
                 user_id = user;
             }
-            let rows;
-            try {
-                conn = await pool.getConnection();
-                rows = await conn.query("SELECT * FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?", [user_id, MODES[mode]]);
-            } finally {
-                if (conn) conn.end();
-            }
-            let rank_highest = {rank: rows[0]?.rank ?? 0, updated_at: rows[0]?.updated_at ?? null}
+
+            let rank_highest = await getPeakRank(user_id, mode);
+            
             let [score, rank, usernameValue] = await Promise.all([
                 redisClient.zscore(`score_${mode}`, user_id),
                 redisClient.zrevrank(`score_${mode}`, user_id),
@@ -168,6 +176,7 @@ async function main() {
             lb[r]["user_id"] = parseInt(rankings[i]);
             lb[r]["username"] = await redisClient.get(`user_${rankings[i]}`);
             lb[r]["score"] = parseInt(rankings[i+1]);
+            lb[r]["rank_highest"] = await getPeakRank(rankings[i], mode);
             r++
         }
 
