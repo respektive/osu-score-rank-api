@@ -145,7 +145,7 @@ async function main() {
                 redisClient.get(`user_${user_id}`),
             ]);
             let data = {
-                rank: rank ? rank + 1 : 0,
+                rank: rank == null ? 0 : rank + 1,
                 user_id: parseInt(user_id) || 0,
                 username: usernameValue || 0,
                 score: parseInt(score) || 0,
