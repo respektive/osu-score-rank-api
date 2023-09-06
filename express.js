@@ -85,7 +85,7 @@ async function main() {
     api.use(require("express-status-monitor")());
 
     api.get("/rank/*", async (req, res) => {
-        let mode = await parseMode(req.query.mode, req.query.m);
+        let mode = parseMode(req.query.mode, req.query.m);
 
         let rank = req.path.split("/").pop();
         let rank_user = await redisClient.zrevrange(
@@ -129,39 +129,37 @@ async function main() {
             return;
         }
 
-        await Promise.all(
-            users.map(async (user) => {
-                let user_id;
-                if (req.query.s == "username") {
-                    user_id = await redisClient.get(`user_${user}`);
-                } else {
-                    user_id = user;
-                }
+        for (const user of users) {
+            let user_id;
+            if (req.query.s == "username") {
+                user_id = await redisClient.get(`user_${user}`);
+            } else {
+                user_id = user;
+            }
 
-                let rank_highest = await getPeakRank(user_id, mode);
+            let rank_highest = await getPeakRank(user_id, mode);
 
-                let [score, rank, usernameValue] = await Promise.all([
-                    redisClient.zscore(`score_${mode}`, user_id),
-                    redisClient.zrevrank(`score_${mode}`, user_id),
-                    redisClient.get(`user_${user_id}`),
-                ]);
-                let data = {
-                    rank: rank ? rank + 1 : 0,
-                    user_id: parseInt(user_id) || 0,
-                    username: usernameValue || 0,
-                    score: parseInt(score) || 0,
-                    rank_highest: rank_highest ?? null,
-                };
-                results.push(data);
-            })
-        );
+            let [score, rank, usernameValue] = await Promise.all([
+                redisClient.zscore(`score_${mode}`, user_id),
+                redisClient.zrevrank(`score_${mode}`, user_id),
+                redisClient.get(`user_${user_id}`),
+            ]);
+            let data = {
+                rank: rank ? rank + 1 : 0,
+                user_id: parseInt(user_id) || 0,
+                username: usernameValue || 0,
+                score: parseInt(score) || 0,
+                rank_highest: rank_highest ?? null,
+            };
+            results.push(data);
+        }
 
         res.status(200);
         res.json(results);
     });
 
     api.get("/rankings", async (req, res) => {
-        let mode = await parseMode(req.query.mode, req.query.m);
+        let mode = parseMode(req.query.mode, req.query.m);
 
         if (
             req.query.page > 200 ||
