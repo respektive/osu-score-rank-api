@@ -72,7 +72,9 @@ async function getPeakRank(user_id, mode) {
     } finally {
         if (conn) conn.end();
     }
-    let rank_highest = { rank: rows[0]?.rank ?? 0, updated_at: rows[0]?.updated_at ?? null };
+    let rank_highest = rows[0]?.rank
+        ? { rank: rows[0].rank, updated_at: rows[0].updated_at }
+        : null;
     return rank_highest;
 }
 
@@ -149,7 +151,7 @@ async function main() {
                 user_id: parseInt(user_id) || 0,
                 username: usernameValue || 0,
                 score: parseInt(score) || 0,
-                rank_highest: rank_highest ?? null,
+                rank_highest: rank_highest,
             };
             results.push(data);
         }
