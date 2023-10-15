@@ -13,7 +13,7 @@ const pool = mariadb.createPool({
 const MODES = ["osu", "taiko", "fruits", "mania"];
 
 async function updateRankHistory() {
-    const today = new Date();
+    const today = new Date().setHours(0, 0, 0, 0);
     let conn;
     try {
         conn = await pool.getConnection();
@@ -30,7 +30,8 @@ async function updateRankHistory() {
                     rank_history = [];
                 } else {
                     const days_since_last_update = Math.floor(
-                        (today - Date.parse(rows[0].updated_at)) / (1000 * 60 * 60 * 24)
+                        (today - Date.parse(rows[0].updated_at).setHours(0, 0, 0, 0)) /
+                            (1000 * 60 * 60 * 24)
                     );
                     if (days_since_last_update >= 90) {
                         // if the last update was over 90 days ago we can just reset the rank history
