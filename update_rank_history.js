@@ -36,6 +36,9 @@ async function updateRankHistory() {
                     if (days_since_last_update >= 90) {
                         // if the last update was over 90 days ago we can just reset the rank history
                         rank_history = [];
+                    } else if (days_since_last_update < 1) {
+                        // this should never happen, but doesn't hurt to have as a safety guard i guess?
+                        continue;
                     } else {
                         rank_history = rows[0].rank_history;
                         // set days without data to null
