@@ -30,7 +30,7 @@ async function updateRankHistory() {
                     rank_history = [];
                 } else {
                     const days_since_last_update = Math.floor(
-                        (today - Date.parse(rows[0].updated_at).setHours(0, 0, 0, 0)) /
+                        (today - new Date(Date.parse(rows[0].updated_at)).setHours(0, 0, 0, 0)) /
                             (1000 * 60 * 60 * 24)
                     );
                     if (days_since_last_update >= 90) {
