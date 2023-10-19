@@ -17,7 +17,7 @@ async function updateRankHistory() {
     let conn;
     try {
         conn = await pool.getConnection();
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < MODES.length; i++) {
             const users = await redisClient.zrevrange(`score_${MODES[i]}`, 0, -1);
             for (const [index, user_id] of users.entries()) {
                 const rows = await conn.query(
@@ -42,7 +42,7 @@ async function updateRankHistory() {
                     } else {
                         rank_history = rows[0].rank_history;
                         // set days without data to null
-                        for (let j = 0; j < days_since_last_update; j++) {
+                        for (let j = 1; j < days_since_last_update; j++) {
                             rank_history.push(null);
                         }
                     }
