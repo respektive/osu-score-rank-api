@@ -78,6 +78,39 @@ async function getPeakRank(user_id, mode) {
     return rank_highest;
 }
 
+async function getRankHistory(user_id, mode) {
+    let conn;
+    let rows;
+    try {
+        conn = await pool.getConnection();
+        rows = await conn.query(
+            "SELECT * FROM osu_score_rank_history WHERE user_id = ? AND mode = ?",
+            [user_id, MODES[mode]]
+        );
+    } finally {
+        if (conn) conn.end();
+    }
+
+    if (!rows[0]?.rank_history || !rows[0]?.updated_at) {
+        return null;
+    }
+
+    let rank_history = [];
+
+    let current_date = new Date(rows[0].updated_at);
+    for (let i = rows[0].rank_history.length - 1; i >= 0; i--) {
+        rank_history.push({
+            rank: rows[0].rank_history[i],
+            date: current_date.toISOString(),
+        });
+
+        // subtract 1 day from date
+        current_date.setDate(current_date.getDate() - 1);
+    }
+
+    return rank_history;
+}
+
 async function main() {
     api.listen(port, () => {
         console.log(`api listening on port ${port}`);
@@ -104,6 +137,7 @@ async function main() {
             data["username"] = await redisClient.get(`user_${rank_user[i]}`);
             data["score"] = parseInt(rank_user[i + 1]);
             data["rank_highest"] = await getPeakRank(rank_user[i], mode);
+            data["rank_history"] = await getRankHistory(rank_user[i], mode);
         }
 
         if (isEmpty(data)) {
@@ -140,6 +174,7 @@ async function main() {
             }
 
             let rank_highest = await getPeakRank(user_id, mode);
+            let rank_history = await getRankHistory(user_id, mode);
 
             let [score, rank, usernameValue] = await Promise.all([
                 redisClient.zscore(`score_${mode}`, user_id),
@@ -152,6 +187,7 @@ async function main() {
                 username: usernameValue || 0,
                 score: parseInt(score) || 0,
                 rank_highest: rank_highest,
+                rank_history: rank_history,
             };
             results.push(data);
         }
@@ -190,6 +226,7 @@ async function main() {
             lb[r]["username"] = await redisClient.get(`user_${rankings[i]}`);
             lb[r]["score"] = parseInt(rankings[i + 1]);
             lb[r]["rank_highest"] = await getPeakRank(rankings[i], mode);
+            lb[r]["rank_history"] = await getRankHistory(rankings[i], mode);
             r++;
         }
 
