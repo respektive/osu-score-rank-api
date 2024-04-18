@@ -53,6 +53,11 @@ function parseMode(mode, m) {
     return resolveMode;
 }
 
+function isNumeric(str) {
+    if (typeof str != "string") return false;
+    return !isNaN(str) && !isNaN(parseFloat(str));
+}
+
 function isEmpty(object) {
     for (const property in object) {
         return false;
@@ -123,6 +128,13 @@ async function main() {
         let mode = parseMode(req.query.mode, req.query.m);
 
         let rank = req.path.split("/").pop();
+
+        if (!isNumeric(rank)) {
+            res.status(400);
+            res.json({ error: "Invalid Rank" });
+            return;
+        }
+
         let rank_user = await redisClient.zrevrange(
             `score_${mode}`,
             rank - 1,
@@ -171,6 +183,12 @@ async function main() {
                 user_id = await redisClient.get(`user_${user}`);
             } else {
                 user_id = user;
+            }
+
+            if (!isNumeric(user_id)) {
+                res.status(400);
+                res.json({ error: "Invalid User" });
+                return;
             }
 
             let rank_highest = await getPeakRank(user_id, mode);
