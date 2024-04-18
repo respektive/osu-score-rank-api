@@ -53,6 +53,29 @@ function parseMode(mode, m) {
     return resolveMode;
 }
 
+function guessOriginFromRequestHeaders(req) {
+    if (req.get("referer")) {
+        // if its set its probably a browser, also osu subdivide nations extension usually has this set
+        return "browser";
+    }
+    const userAgent = req.get("user-agent");
+    if (userAgent) {
+        if (userAgent.startsWith("Mozilla")) return "browser";
+        switch (userAgent) {
+            case "flowabot":
+                return "flowabot";
+            case "bathbot-client":
+                return "bathbot";
+            // this isnt ideal, but osu-tracker isnt using any custom headers, so we can just assume by the user agent
+            case "axios/0.27.2":
+                return "osu-tracker";
+            default:
+                return "other";
+        }
+    }
+    return "other";
+}
+
 function isNumeric(str) {
     if (typeof str != "string") return false;
     return !isNaN(str) && !isNaN(parseFloat(str));
@@ -123,6 +146,29 @@ async function main() {
 
     api.use(morgan("dev"));
     api.use(require("express-status-monitor")());
+
+    if (config.metrics.port > 0) {
+        const { metricsServer, requestDurationHistogram } = require("./metrics");
+        const responseTime = require("response-time");
+
+        api.use(
+            responseTime((req, res, response_time) => {
+                if (!req?.route?.path) return;
+
+                requestDurationHistogram
+                    .labels(
+                        req.method,
+                        req.route.path,
+                        res.statusCode,
+                        guessOriginFromRequestHeaders(req),
+                        parseMode(req.query.mode, req.query.m)
+                    )
+                    .observe(response_time / 1000);
+            })
+        );
+
+        metricsServer(config.metrics.port);
+    }
 
     api.get("/rank/*", async (req, res) => {
         let mode = parseMode(req.query.mode, req.query.m);
