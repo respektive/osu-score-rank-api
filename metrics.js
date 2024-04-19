@@ -9,6 +9,12 @@ const requestDurationHistogram = new client.Histogram({
     labelNames: ["method", "route", "status_code", "origin", "mode"],
 });
 
+const dbQueryDurationHistogram = new client.Histogram({
+    name: "score_rank_api_db_query_duration_histogram",
+    help: "Histogram of database query durations in seconds",
+    labelNames: ["query"],
+});
+
 function metricsServer(port) {
     const collectDefaultMetrics = client.collectDefaultMetrics;
     const Registry = client.Registry;
@@ -16,6 +22,7 @@ function metricsServer(port) {
     collectDefaultMetrics({ register });
 
     register.registerMetric(requestDurationHistogram);
+    register.registerMetric(dbQueryDurationHistogram);
 
     app.get("/metrics", async (req, res) => {
         res.set("Content-Type", register.contentType);
@@ -27,4 +34,4 @@ function metricsServer(port) {
     });
 }
 
-module.exports = { metricsServer, requestDurationHistogram };
+module.exports = { metricsServer, requestDurationHistogram, dbQueryDurationHistogram };
