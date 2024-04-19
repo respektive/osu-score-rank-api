@@ -11,5 +11,8 @@
         "user": "score",
         "pw": "pw",
         "db": "osu"
+    },
+    "metrics": {
+        "port": 72727
     }
 }
