@@ -191,7 +191,7 @@ async function main() {
         for (let i = 0; i < rank_user.length; i += 2) {
             data["rank"] = parseInt(rank);
             data["user_id"] = parseInt(rank_user[i]);
-            data["username"] = await redisClient.get(`user_${rank_user[i]}`);
+            data["username"] = await redisClient.hget("user_id_to_username", rank_user[i]);
             data["score"] = parseInt(rank_user[i + 1]);
             data["rank_highest"] = await getPeakRank(rank_user[i], mode);
             data["rank_history"] = await getRankHistory(rank_user[i], mode);
@@ -225,7 +225,7 @@ async function main() {
         for (const user of users) {
             let user_id;
             if (req.query.s == "username") {
-                user_id = await redisClient.get(`user_${user}`);
+                user_id = await redisClient.hget("username_to_user_id", user);
             } else {
                 user_id = user;
             }
@@ -242,7 +242,7 @@ async function main() {
             let [score, rank, usernameValue] = await Promise.all([
                 redisClient.zscore(`score_${mode}`, user_id),
                 redisClient.zrevrank(`score_${mode}`, user_id),
-                redisClient.get(`user_${user_id}`),
+                redisClient.hget("user_id_to_username", user_id),
             ]);
             let data = {
                 rank: rank == null ? 0 : rank + 1,
@@ -286,7 +286,7 @@ async function main() {
             lb[r] = {};
             lb[r]["rank"] = (await redisClient.zrevrank(`score_${mode}`, rankings[i])) + 1;
             lb[r]["user_id"] = parseInt(rankings[i]);
-            lb[r]["username"] = await redisClient.get(`user_${rankings[i]}`);
+            lb[r]["username"] = await redisClient.get("user_id_to_username", rankings[i]);
             lb[r]["score"] = parseInt(rankings[i + 1]);
             lb[r]["rank_highest"] = await getPeakRank(rankings[i], mode);
             lb[r]["rank_history"] = await getRankHistory(rankings[i], mode);

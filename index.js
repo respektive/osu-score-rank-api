@@ -91,8 +91,8 @@ async function fullRankingsUpdate(mode, type, cursor) {
                 user_ids.push(elem.user.id);
 
                 await redisClient.zadd(`score_${mode}`, elem.ranked_score, elem.user.id);
-                await redisClient.set(`user_${elem.user.id}`, elem.user.username);
-                await redisClient.set(`user_${elem.user.username}`, elem.user.id);
+                await redisClient.hset("user_id_to_username", elem.user.id, elem.user.username);
+                await redisClient.hset("username_to_user_id", elem.user.username, elem.user.id);
                 try {
                     conn = await pool.getConnection();
                     const rows = await conn.query(
