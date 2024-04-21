@@ -162,7 +162,7 @@ async function main() {
             if (!req?.route?.path) return;
 
             observeRequestDuration(
-                response_time,
+                response_time / 1000,
                 req.method,
                 req.route.path,
                 res.statusCode,
