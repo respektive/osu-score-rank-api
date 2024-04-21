@@ -286,7 +286,7 @@ async function main() {
             lb[r] = {};
             lb[r]["rank"] = (await redisClient.zrevrank(`score_${mode}`, rankings[i])) + 1;
             lb[r]["user_id"] = parseInt(rankings[i]);
-            lb[r]["username"] = await redisClient.get("user_id_to_username", rankings[i]);
+            lb[r]["username"] = await redisClient.hget("user_id_to_username", rankings[i]);
             lb[r]["score"] = parseInt(rankings[i + 1]);
             lb[r]["rank_highest"] = await getPeakRank(rankings[i], mode);
             lb[r]["rank_history"] = await getRankHistory(rankings[i], mode);
