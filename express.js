@@ -3,7 +3,7 @@ const morgan = require("morgan");
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
-const { metricsServer, requestDurationHistogram, dbQueryDurationHistogram } = require("./metrics");
+const { metricsServer, observeDbQueryDuration, observeRequestDuration } = require("./metrics");
 const responseTime = require("response-time");
 const mariadb = require("mariadb");
 const pool = mariadb.createPool({
@@ -92,7 +92,7 @@ function isEmpty(object) {
 
 async function getPeakRank(user_id, mode) {
     let conn, rows;
-    const endTimer = dbQueryDurationHistogram.startTimer({ query: "getPeakRank" });
+    const startTime = process.hrtime();
     try {
         conn = await pool.getConnection();
         rows = await conn.query(
@@ -102,8 +102,10 @@ async function getPeakRank(user_id, mode) {
     } finally {
         if (conn) conn.end();
     }
+    const endTime = process.hrtime(startTime);
+    const duration = endTime[0] + endTime[1] / 1e9;
+    observeDbQueryDuration(duration, "getPeakRank");
 
-    endTimer();
     let rank_highest = rows[0]?.rank
         ? { rank: rows[0].rank, updated_at: rows[0].updated_at }
         : null;
@@ -112,7 +114,7 @@ async function getPeakRank(user_id, mode) {
 
 async function getRankHistory(user_id, mode) {
     let conn, rows;
-    const endTimer = dbQueryDurationHistogram.startTimer({ query: "getRankHistory" });
+    const startTime = process.hrtime();
     try {
         conn = await pool.getConnection();
         rows = await conn.query(
@@ -123,7 +125,9 @@ async function getRankHistory(user_id, mode) {
         if (conn) conn.end();
     }
 
-    endTimer();
+    const endTime = process.hrtime(startTime);
+    const duration = endTime[0] + endTime[1] / 1e9;
+    observeDbQueryDuration(duration, "getRankHistory");
 
     if (!rows[0]?.rank_history || !rows[0]?.updated_at) {
         return null;
@@ -150,22 +154,21 @@ async function main() {
         console.log(`api listening on port ${port}`);
     });
 
-    api.use(morgan("dev"));
+    // api.use(morgan("dev"));
     api.use(require("express-status-monitor")());
 
     api.use(
         responseTime((req, res, response_time) => {
             if (!req?.route?.path) return;
 
-            requestDurationHistogram
-                .labels(
-                    req.method,
-                    req.route.path,
-                    res.statusCode,
-                    guessOriginFromRequestHeaders(req),
-                    parseMode(req.query.mode, req.query.m)
-                )
-                .observe(response_time / 1000);
+            observeRequestDuration(
+                response_time,
+                req.method,
+                req.route.path,
+                res.statusCode,
+                guessOriginFromRequestHeaders(req),
+                parseMode(req.query.mode, req.query.m)
+            );
         })
     );
 
@@ -302,3 +305,4 @@ main();
 if (config.metrics.port > 0) {
     metricsServer(config.metrics.port);
 }
+require("./fetcher");

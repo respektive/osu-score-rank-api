@@ -15,15 +15,34 @@ const dbQueryDurationHistogram = new client.Histogram({
     labelNames: ["query"],
 });
 
+const osuApiRequestDurationHistogram = new client.Histogram({
+    name: "score_rankings_fetcher_osu_api_request_duration_histogram",
+    help: "Histogram of osu api request durations in seconds",
+    labelNames: ["mode", "status_code"],
+});
+
+function observeRequestDuration(duration, method, route, statusCode, origin, mode) {
+    requestDurationHistogram.labels(method, route, statusCode, origin, mode).observe(duration);
+}
+
+function observeDbQueryDuration(duration, query) {
+    dbQueryDurationHistogram.labels(query).observe(duration);
+}
+
+function observeOsuApiRequestDuration(duration, mode, statusCode) {
+    osuApiRequestDurationHistogram.labels(mode, statusCode).observe(duration);
+}
+
+const collectDefaultMetrics = client.collectDefaultMetrics;
+const Registry = client.Registry;
+const register = new Registry();
+collectDefaultMetrics({ register });
+
+register.registerMetric(requestDurationHistogram);
+register.registerMetric(dbQueryDurationHistogram);
+register.registerMetric(osuApiRequestDurationHistogram);
+
 function metricsServer(port) {
-    const collectDefaultMetrics = client.collectDefaultMetrics;
-    const Registry = client.Registry;
-    const register = new Registry();
-    collectDefaultMetrics({ register });
-
-    register.registerMetric(requestDurationHistogram);
-    register.registerMetric(dbQueryDurationHistogram);
-
     app.get("/metrics", async (req, res) => {
         res.set("Content-Type", register.contentType);
         res.send(await register.metrics());
@@ -34,4 +53,9 @@ function metricsServer(port) {
     });
 }
 
-module.exports = { metricsServer, requestDurationHistogram, dbQueryDurationHistogram };
+module.exports = {
+    metricsServer,
+    observeDbQueryDuration,
+    observeRequestDuration,
+    observeOsuApiRequestDuration,
+};

@@ -2,6 +2,7 @@ const axios = require("axios");
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
+const { observeDbQueryDuration, observeOsuApiRequestDuration } = require("./metrics");
 const mariadb = require("mariadb");
 const pool = mariadb.createPool({
     host: config.db.host,
@@ -78,12 +79,17 @@ async function fullRankingsUpdate(mode, type, cursor) {
         json: true,
     });
 
+    const osuAPIStartTime = process.hrtime();
     osuAPI
         .get("/rankings/" + mode + "/" + type, { data: { cursor: { page: cursor } } })
         .then(async (res) => {
+            const osuAPIEndTime = process.hrtime(osuAPIStartTime);
+            const osuAPIDuration = osuAPIEndTime[0] + osuAPIEndTime[1] / 1e9;
+            observeOsuApiRequestDuration(osuAPIDuration, mode, res.status);
+
             let i = 0;
 
-            console.log("Adding " + res.data.ranking.length + " Entries to the db");
+            // console.log("Adding " + res.data.ranking.length + " Entries to the db");
 
             await res.data.ranking.forEach(async (elem) => {
                 i++;
@@ -95,25 +101,37 @@ async function fullRankingsUpdate(mode, type, cursor) {
                 await redisClient.hset("username_to_user_id", elem.user.username, elem.user.id);
                 try {
                     conn = await pool.getConnection();
+
+                    const selectStartTime = process.hrtime();
                     const rows = await conn.query(
                         "SELECT rank FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?",
                         [elem.user.id, MODES[mode]]
                     );
 
+                    const selectEndTime = process.hrtime(selectStartTime);
+                    const duration = selectEndTime[0] + selectEndTime[1] / 1e9;
+                    observeDbQueryDuration(duration, "getPeakRank");
+
                     const rank = await redisClient.zrevrank(`score_${mode}`, elem.user.id);
                     if (!rows[0] || rank + 1 < rows[0].rank) {
+                        const insertStartTime = process.hrtime();
+
                         const res = await conn.query(
                             "INSERT INTO osu_score_rank_highest (user_id, mode, rank) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rank=?",
                             [elem.user.id, MODES[mode], rank + 1, rank + 1]
                         );
-                        console.log(
-                            "Added new highest rank",
-                            rank + 1,
-                            "for user",
-                            elem.user.username,
-                            "and mode",
-                            mode
-                        );
+
+                        const insertEndTime = process.hrtime(insertStartTime);
+                        const duration = insertEndTime[0] + insertEndTime[1] / 1e9;
+                        observeDbQueryDuration(duration, "insertPeakRank");
+                        // console.log(
+                        //     "Added new highest rank",
+                        //     rank + 1,
+                        //     "for user",
+                        //     elem.user.username,
+                        //     "and mode",
+                        //     mode
+                        // );
                     }
                 } finally {
                     if (conn) conn.end();
@@ -125,7 +143,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
                 await sleep(1000);
                 fullRankingsUpdate(mode, type, cursor);
                 retries[mode][type] = 0;
-                console.log("Added a total of " + entries + " to the db score_" + mode);
+                // console.log("Added a total of " + entries + " to the db score_" + mode);
             } else {
                 // Remove restricted and otherwise deleted users from the api.
                 const redis_users = await redisClient.zrange(`score_${mode}`, 0, -1);
@@ -142,6 +160,11 @@ async function fullRankingsUpdate(mode, type, cursor) {
             }
         })
         .catch(async (err) => {
+            const osuAPIEndTime = process.hrtime(osuAPIStartTime);
+            const osuAPIDuration = osuAPIEndTime[0] + osuAPIEndTime[1] / 1e9;
+
+            observeOsuApiRequestDuration(osuAPIDuration, mode, err.response?.status || "Unknown");
+
             if (retries[mode][type] < 4) {
                 console.log(err);
                 console.log("Retry: " + retries[mode][type]);
@@ -194,9 +217,9 @@ function updateAll() {
     }
 }
 
-async function main() {
+function startFetch() {
     updateAll();
     setInterval(updateAll, 480 * 1000);
 }
 
-main();
+startFetch();
