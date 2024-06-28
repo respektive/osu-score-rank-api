@@ -266,7 +266,7 @@ async function main() {
                 score = userScore;
 
                 const belowRankUser = await redisClient.zrange(`score_${mode}`, score, 0, 'BYSCORE', 'REV', 'LIMIT', 0, 1);
-                const belowRank = await redisClient.zrevrank(`score_${mode}`, belowRankUser);
+                const belowRank = belowRankUser.length == 0 ? 10000 : await redisClient.zrevrank(`score_${mode}`, belowRankUser);
 
                 rank = belowRank - 1;
             } else {
