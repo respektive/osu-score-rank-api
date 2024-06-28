@@ -275,7 +275,7 @@ async function main() {
                 rank = await redisClient.zrevrank(`score_${mode}`, user_id)
             }
 
-            const prevRaw = await getUserAtRank(rank, mode);
+            const prevRaw = rank == 0 ? null : await getUserAtRank(rank, mode);
             const nextRaw = await getUserAtRank(rank + 2, mode);
 
             const prev = isEmpty(prevRaw) ? null : { 
