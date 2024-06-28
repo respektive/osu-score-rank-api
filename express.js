@@ -276,13 +276,22 @@ async function main() {
             }
 
             const prevRaw = rank == 0 ? null : await getUserAtRank(rank, mode);
-            const nextRaw = await getUserAtRank(rank + 2, mode);
 
             const prev = isEmpty(prevRaw) ? null : { 
                     username: prevRaw.username,
                     user_id: prevRaw.user_id,
                     score: prevRaw.score
             };
+
+            let nextRaw;
+
+            // If next rank is the user themselves, take the next one
+            for (let i = 0; i <= 1; i++) {
+                nextRaw = await getUserAtRank(rank + 2 + i, mode);
+
+                if (nextRaw.user_id != parseInt(user_id))
+                    break;
+            }
 
             const next = isEmpty(nextRaw) ? null : { 
                     username: nextRaw.username,
