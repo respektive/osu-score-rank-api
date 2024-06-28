@@ -149,6 +149,29 @@ async function getRankHistory(user_id, mode) {
     return rank_history;
 }
 
+async function getUserAtRank(rank, mode) {
+    let rank_user = await redisClient.zrevrange(
+        `score_${mode}`,
+        rank - 1,
+        rank - 1,
+        "WITHSCORES"
+    );
+
+    let data = {};
+
+    for (let i = 0; i < rank_user.length; i += 2) {
+        data["rank"] = parseInt(rank);
+        data["user_id"] = parseInt(rank_user[i]);
+        data["username"] = await redisClient.hget("user_id_to_username", rank_user[i]);
+        data["score"] = parseInt(rank_user[i + 1]);
+        data["rank_highest"] = await getPeakRank(rank_user[i], mode);
+        data["rank_history"] = await getRankHistory(rank_user[i], mode);
+    }
+
+    return data;
+}
+
+
 async function main() {
     api.listen(port, () => {
         console.log(`api listening on port ${port}`);
@@ -183,22 +206,7 @@ async function main() {
             return;
         }
 
-        let rank_user = await redisClient.zrevrange(
-            `score_${mode}`,
-            rank - 1,
-            rank - 1,
-            "WITHSCORES"
-        );
-        let data = {};
-
-        for (let i = 0; i < rank_user.length; i += 2) {
-            data["rank"] = parseInt(rank);
-            data["user_id"] = parseInt(rank_user[i]);
-            data["username"] = await redisClient.hget("user_id_to_username", rank_user[i]);
-            data["score"] = parseInt(rank_user[i + 1]);
-            data["rank_highest"] = await getPeakRank(rank_user[i], mode);
-            data["rank_history"] = await getRankHistory(rank_user[i], mode);
-        }
+        const data = await getUserAtRank(rank, mode);
 
         if (isEmpty(data)) {
             res.status(200);
@@ -266,6 +274,22 @@ async function main() {
                 score = await redisClient.zscore(`score_${mode}`, user_id);
                 rank = await redisClient.zrevrank(`score_${mode}`, user_id)
             }
+
+            const prevRaw = await getUserAtRank(rank, mode);
+            const nextRaw = await getUserAtRank(rank + 2, mode);
+
+            const prev = isEmpty(prevRaw) ? null : { 
+                    username: prevRaw.username,
+                    user_id: prevRaw.user_id,
+                    score: prevRaw.score
+            };
+
+            const next = isEmpty(nextRaw) ? null : { 
+                    username: nextRaw.username,
+                    user_id: nextRaw.user_id,
+                    score: nextRaw.score
+            };
+
             let data = {
                 rank: rank == null ? 0 : rank + 1,
                 user_id: parseInt(user_id) || 0,
@@ -273,6 +297,8 @@ async function main() {
                 score: parseInt(score) || 0,
                 rank_highest: rank_highest,
                 rank_history: rank_history,
+                prev,
+                next
             };
             results.push(data);
         }
