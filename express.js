@@ -212,6 +212,7 @@ async function main() {
     api.get("/u/:users", async (req, res) => {
         let mode = parseMode(req.query.mode, req.query.m);
         let users = req.params.users.split(",");
+        let scores = req.query.score?.split(",") ?? [];
 
         if (["username", "user_id"].includes(req.query.s) == -1 || req.query.s == undefined) {
             req.query.s = "user_id";
@@ -225,7 +226,7 @@ async function main() {
             return;
         }
 
-        for (const user of users) {
+        for (const [index, user] of users.entries()) {
             let user_id;
             if (req.query.s == "username") {
                 user_id = await redisClient.hget("username_to_user_id", user);
@@ -242,15 +243,33 @@ async function main() {
             let rank_highest = await getPeakRank(user_id, mode);
             let rank_history = await getRankHistory(user_id, mode);
 
-            let [score, rank, usernameValue] = await Promise.all([
-                redisClient.zscore(`score_${mode}`, user_id),
-                redisClient.zrevrank(`score_${mode}`, user_id),
-                redisClient.hget("user_id_to_username", user_id),
-            ]);
+            let username = await redisClient.hget("user_id_to_username", user_id);
+
+            let score, rank;
+
+            if (scores[index] !== undefined) {
+                const userScore = Number(scores[index]);
+
+                if (isNaN(userScore)) {
+                    res.status(400);
+                    res.json({ error: "Invalid Score" });
+                    return;
+                }
+
+                score = userScore;
+
+                const belowRankUser = await redisClient.zrange(`score_${mode}`, score, 0, 'BYSCORE', 'REV', 'LIMIT', 0, 1);
+                const belowRank = await redisClient.zrevrank(`score_${mode}`, belowRankUser);
+
+                rank = belowRank - 1;
+            } else {
+                score = await redisClient.zscore(`score_${mode}`, user_id);
+                rank = await redisClient.zrevrank(`score_${mode}`, user_id)
+            }
             let data = {
                 rank: rank == null ? 0 : rank + 1,
                 user_id: parseInt(user_id) || 0,
-                username: usernameValue || 0,
+                username: username || 0,
                 score: parseInt(score) || 0,
                 rank_highest: rank_highest,
                 rank_history: rank_history,
