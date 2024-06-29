@@ -256,18 +256,16 @@ async function main() {
             let score, rank;
 
             if (scores[index] !== undefined) {
-                const userScore = Number(scores[index]);
-
-                if (isNaN(userScore)) {
+                if (!isNumeric(scores[index])) {
                     res.status(400);
                     res.json({ error: "Invalid Score" });
                     return;
                 }
 
-                score = userScore;
+                score = scores[index] ;
 
                 const belowRankUser = await redisClient.zrange(`score_${mode}`, score, 0, 'BYSCORE', 'REV', 'LIMIT', 0, 1);
-                const belowRank = await redisClient.zrevrank(`score_${mode}`, belowRankUser);
+                const belowRank = belowRankUser.length == 0 ? 10000 : await redisClient.zrevrank(`score_${mode}`, belowRankUser);
 
                 rank = belowRank - 1;
             } else {
