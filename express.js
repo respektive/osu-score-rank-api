@@ -262,7 +262,7 @@ async function main() {
                     return;
                 }
 
-                score = scores[index] ;
+                score = scores[index];
 
                 const belowRankUser = await redisClient.zrange(`score_${mode}`, score, 0, 'BYSCORE', 'REV', 'LIMIT', 0, 1);
                 const belowRank = belowRankUser.length == 0 ? 10000 : await redisClient.zrevrank(`score_${mode}`, belowRankUser);
@@ -273,28 +273,28 @@ async function main() {
                 rank = await redisClient.zrevrank(`score_${mode}`, user_id)
             }
 
-            const prevRaw = rank == 0 ? null : await getUserAtRank(rank, mode);
-
-            const prev = isEmpty(prevRaw) ? null : { 
-                    username: prevRaw.username,
-                    user_id: prevRaw.user_id,
-                    score: prevRaw.score
-            };
-
-            let nextRaw;
-
-            // If next rank is the user themselves, take the next one
-            for (let i = 0; i <= 1; i++) {
-                nextRaw = await getUserAtRank(rank + 2 + i, mode);
-
-                if (nextRaw.user_id != parseInt(user_id))
-                    break;
-            }
+            const nextRaw = rank == 0 ? null : await getUserAtRank(rank, mode);
 
             const next = isEmpty(nextRaw) ? null : { 
                     username: nextRaw.username,
                     user_id: nextRaw.user_id,
                     score: nextRaw.score
+            };
+
+            let prevRaw;
+
+            // If prev rank is the user themselves, take the prev one
+            for (let i = 0; i <= 1; i++) {
+                prevRaw = await getUserAtRank(rank + 2 + i, mode);
+
+                if (prevRaw.user_id != parseInt(user_id))
+                    break;
+            }
+
+            const prev = isEmpty(prevRaw) ? null : { 
+                    username: prevRaw.username,
+                    user_id: prevRaw.user_id,
+                    score: prevRaw.score
             };
 
             let data = {
