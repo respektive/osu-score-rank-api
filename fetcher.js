@@ -67,7 +67,7 @@ async function refreshToken() {
     });
 }
 
-async function fullRankingsUpdate(mode, type, cursor) {
+async function fullRankingsUpdate(mode, type, cursor_string) {
     let conn;
     if (Date.now() > refresh - 5 * 60 * 1000) {
         token = await refreshToken();
@@ -81,7 +81,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
 
     const osuAPIStartTime = process.hrtime();
     osuAPI
-        .get("/rankings/" + mode + "/" + type, { data: { cursor: { page: cursor } } })
+        .get("/rankings/" + mode + "/" + type, { params: { cursor_string: cursor_string } })
         .then(async (res) => {
             const osuAPIEndTime = process.hrtime(osuAPIStartTime);
             const osuAPIDuration = osuAPIEndTime[0] + osuAPIEndTime[1] / 1e9;
@@ -138,10 +138,10 @@ async function fullRankingsUpdate(mode, type, cursor) {
                 }
             });
 
-            if (res.data.cursor != null) {
-                cursor = res.data.cursor.page;
+            if (res.data.cursor_string != null) {
+                cursor_string = res.data.cursor_string;
                 await sleep(1000);
-                fullRankingsUpdate(mode, type, cursor);
+                fullRankingsUpdate(mode, type, cursor_string);
                 retries[mode][type] = 0;
                 // console.log("Added a total of " + entries + " to the db score_" + mode);
             } else {
@@ -170,7 +170,7 @@ async function fullRankingsUpdate(mode, type, cursor) {
                 console.log("Retry: " + retries[mode][type]);
                 retries[mode][type]++;
                 await sleep(1000 * (retries[mode][type] * 10));
-                fullRankingsUpdate(mode, type, cursor);
+                fullRankingsUpdate(mode, type, cursor_string);
             } else {
                 console.log("Max retries reached, giving up.");
                 retries[mode][type] = 0;
