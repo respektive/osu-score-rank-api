@@ -70,6 +70,7 @@ function guessOriginFromRequestHeaders(req) {
                 return "bathbot";
             // this isnt ideal, but osu-tracker isnt using any custom headers, so we can just assume by the user agent
             case "axios/0.27.2":
+            case "osu-tracker":
                 return "osu-tracker";
             default:
                 return "other";
