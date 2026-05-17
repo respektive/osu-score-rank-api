@@ -268,7 +268,7 @@ async function main() {
                 const belowRankUser = await redisClient.zrange(`score_${mode}`, score, 0, 'BYSCORE', 'REV', 'LIMIT', 0, 1);
                 const belowRank = belowRankUser.length == 0 ? 10000 : await redisClient.zrevrank(`score_${mode}`, belowRankUser);
 
-                rank = belowRank - 1;
+                rank = belowRank;
             } else {
                 score = await redisClient.zscore(`score_${mode}`, user_id);
                 rank = await redisClient.zrevrank(`score_${mode}`, user_id)
@@ -286,7 +286,7 @@ async function main() {
 
             // If prev rank is the user themselves, take the prev one
             for (let i = 0; i <= 1; i++) {
-                prevRaw = await getUserAtRank(rank + 2 + i, mode);
+                prevRaw = await getUserAtRank(rank + 1 + i, mode);
 
                 if (prevRaw.user_id != parseInt(user_id))
                     break;
