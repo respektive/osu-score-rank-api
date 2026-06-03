@@ -94,31 +94,46 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
             await res.data.ranking.forEach(async (elem) => {
                 i++;
                 entries++;
-                user_ids.push(elem.user.id);
 
-                await redisClient.zadd(`score_${mode}`, elem.ranked_score, elem.user.id);
-                await redisClient.hset("user_id_to_username", elem.user.id, elem.user.username);
-                await redisClient.hset("username_to_user_id", elem.user.username, elem.user.id);
+                const { id, username } = elem.user;
+                user_ids.push(id);
+
+                await redisClient.zadd(`score_${mode}`, elem.ranked_score, id);
+                await redisClient.hset("user_id_to_username", id, username);
+                await redisClient.hset("username_to_user_id", username, id);
                 try {
                     conn = await pool.getConnection();
 
+                    // save full user_data to db
+                    const insertUserDataStartTime = process.hrtime();
+                    const user_data = elem;
+                    const res = await conn.query(
+                        "INSERT INTO osu_score_user_data (user_id, mode, user_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_data=?",
+                        [id, MODES[mode], user_data, user_data],
+                    );
+
+                    const insertUserDataEndTime = process.hrtime(insertUserDataStartTime);
+                    const insertUserDataDuration = insertUserDataEndTime[0] + insertUserDataEndTime[1] / 1e9;
+                    observeDbQueryDuration(insertUserDataDuration, "insertUserData");
+
+                    // check for new peak rank
                     const selectStartTime = process.hrtime();
                     const rows = await conn.query(
                         "SELECT rank FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?",
-                        [elem.user.id, MODES[mode]]
+                        [id, MODES[mode]],
                     );
 
                     const selectEndTime = process.hrtime(selectStartTime);
                     const duration = selectEndTime[0] + selectEndTime[1] / 1e9;
                     observeDbQueryDuration(duration, "getPeakRank");
 
-                    const rank = await redisClient.zrevrank(`score_${mode}`, elem.user.id);
+                    const rank = await redisClient.zrevrank(`score_${mode}`, id);
                     if (!rows[0] || rank + 1 < rows[0].rank) {
                         const insertStartTime = process.hrtime();
 
                         const res = await conn.query(
                             "INSERT INTO osu_score_rank_highest (user_id, mode, rank) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rank=?",
-                            [elem.user.id, MODES[mode], rank + 1, rank + 1]
+                            [id, MODES[mode], rank + 1, rank + 1],
                         );
 
                         const insertEndTime = process.hrtime(insertStartTime);

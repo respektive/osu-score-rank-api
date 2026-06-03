@@ -1,8 +1,8 @@
--- MariaDB dump 10.19  Distrib 10.5.20-MariaDB, for debian-linux-gnu (x86_64)
+-- MariaDB dump 10.19-11.3.2-MariaDB, for debian-linux-gnu (aarch64)
 --
 -- Host: localhost    Database: osu
 -- ------------------------------------------------------
--- Server version	10.5.20-MariaDB-1:10.5.20+maria~deb11
+-- Server version	11.3.2-MariaDB-1:11.3.2+maria~deb12
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -51,6 +51,22 @@ CREATE TABLE `osu_score_rank_history` (
   PRIMARY KEY (`user_id`,`mode`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `osu_score_user_data`
+--
+
+DROP TABLE IF EXISTS `osu_score_user_data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `osu_score_user_data` (
+  `user_id` int(10) unsigned NOT NULL,
+  `mode` tinyint(4) NOT NULL,
+  `user_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`user_data`)),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`user_id`,`mode`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -61,4 +77,4 @@ CREATE TABLE `osu_score_rank_history` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-10-13 20:30:12
+-- Dump completed on 2026-06-03  2:41:35
