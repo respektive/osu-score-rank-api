@@ -223,7 +223,7 @@ async function main() {
         let users = req.params.users.split(",");
         let scores = req.query.score?.split(",") ?? [];
 
-        if (["username", "user_id"].includes(req.query.s) == -1 || req.query.s == undefined) {
+        if (!req.query.s || !["username", "user_id"].includes(req.query.s)) {
             req.query.s = "user_id";
         }
 
@@ -240,6 +240,7 @@ async function main() {
             if (req.query.s == "username") {
                 user_id = await redisClient.hget("username_to_user_id", user);
             } else {
+                // no validation to allow old `rank_highest` entries for users outside redis cache
                 user_id = user;
             }
 
