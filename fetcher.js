@@ -108,7 +108,7 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                     const insertUserDataStartTime = process.hrtime();
                     const user_data = elem;
                     const res = await conn.query(
-                        "INSERT INTO osu_score_user_data (user_id, mode, user_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_data=?",
+                        "INSERT INTO osu_score_user_data (user_id, mode, user_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_data=?, updated_at=NOW()",
                         [id, MODES[mode], user_data, user_data],
                     );
 
