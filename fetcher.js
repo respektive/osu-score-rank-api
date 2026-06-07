@@ -1,4 +1,3 @@
-const axios = require("axios");
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
@@ -12,6 +11,8 @@ const pool = mariadb.createPool({
     connectionLimit: 5,
 });
 
+const API_URL = "https://osu.ppy.sh/api/v2";
+const AUTH_URL = "https://osu.ppy.sh/oauth/token";
 const MODES = {
     osu: 0,
     taiko: 1,
@@ -41,29 +42,40 @@ let done = true;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function buildRankingApiUrl(mode, type, cursor_string) {
+    const url = new URL(`${API_URL}/rankings/${mode}/${type}`);
+    cursor_string && url.searchParams.set("cursor_string", cursor_string);
+    return url;
+}
+
 async function refreshToken() {
     return new Promise((resolve, reject) => {
-        axios({
-            url: "https://osu.ppy.sh/oauth/token",
-            method: "post",
+        fetch(AUTH_URL, {
+            method: "POST",
             headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",
             },
-            data: {
+            body: JSON.stringify({
                 grant_type: "client_credentials",
                 client_id: config.osu.id,
                 client_secret: config.osu.secret,
                 scope: "public",
-            },
+            }),
         })
+        .then((res) => {
+            if(!res.ok) {
+                throw new Error(`Token refresh failed: ${res.status} ${res.statusText}`);
+            }
+
+            res.json()
             .then((data) => {
-                refresh = Date.now() + data.data.expires_in * 1000;
-                resolve("Bearer " + data.data.access_token);
+                refresh = Date.now() + data.expires_in * 1000;
+                resolve("Bearer " + data.access_token);
             })
-            .catch((err) => {
-                reject(err);
-            });
+            .catch(reject);
+        })
+        .catch(reject);
     });
 }
 
@@ -73,25 +85,27 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
         token = await refreshToken();
     }
 
-    let osuAPI = axios.create({
-        baseURL: "https://osu.ppy.sh/api/v2",
-        headers: { Authorization: token },
-        json: true,
-    });
-
     const osuAPIStartTime = process.hrtime();
-    osuAPI
-        .get("/rankings/" + mode + "/" + type, { params: { cursor_string: cursor_string } })
-        .then(async (res) => {
+    fetch(
+        buildRankingApiUrl(mode, type, cursor_string), {
+        headers: { Authorization: token }
+    })
+    .then((res) => {
+        if(!res.ok) {
+            throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+        }
+
+        res.json()
+        .then(async (data) => {
             const osuAPIEndTime = process.hrtime(osuAPIStartTime);
             const osuAPIDuration = osuAPIEndTime[0] + osuAPIEndTime[1] / 1e9;
             observeOsuApiRequestDuration(osuAPIDuration, mode, res.status);
 
             let i = 0;
 
-            // console.log("Adding " + res.data.ranking.length + " Entries to the db");
+            // console.log("Adding " + data.ranking.length + " Entries to the db");
 
-            await res.data.ranking.forEach(async (elem) => {
+            await data.ranking.forEach(async (elem) => {
                 i++;
                 entries++;
 
@@ -108,7 +122,7 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                     const insertUserDataStartTime = process.hrtime();
                     const user_data = elem;
                     const res = await conn.query(
-                        "INSERT INTO osu_score_user_data (user_id, mode, user_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_data=?, updated_at=NOW()",
+                        "INSERT INTO osu_score_user_data (user_id, mode, user_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_data=?, updated_at=current_timestamp()",
                         [id, MODES[mode], user_data, user_data],
                     );
 
@@ -153,8 +167,8 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                 }
             });
 
-            if (res.data.cursor_string != null) {
-                cursor_string = res.data.cursor_string;
+            if (data.cursor_string != null) {
+                cursor_string = data.cursor_string;
                 await sleep(1000);
                 fullRankingsUpdate(mode, type, cursor_string);
                 retries[mode][type] = 0;
@@ -174,24 +188,32 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                 done = true;
             }
         })
-        .catch(async (err) => {
-            const osuAPIEndTime = process.hrtime(osuAPIStartTime);
-            const osuAPIDuration = osuAPIEndTime[0] + osuAPIEndTime[1] / 1e9;
-
-            observeOsuApiRequestDuration(osuAPIDuration, mode, err.response?.status || "Unknown");
-
-            if (retries[mode][type] < 4) {
-                console.log(err);
-                console.log("Retry: " + retries[mode][type]);
-                retries[mode][type]++;
-                await sleep(1000 * (retries[mode][type] * 10));
-                fullRankingsUpdate(mode, type, cursor_string);
-            } else {
-                console.log("Max retries reached, giving up.");
-                retries[mode][type] = 0;
-                done = true;
-            }
+        .catch((err) => {
+            handleRankingApiError(err, mode, type, cursor_string, osuAPIStartTime);
         });
+    })
+    .catch((err) => {
+        handleRankingApiError(err, mode, type, cursor_string, osuAPIStartTime);
+    });
+}
+
+async function handleRankingApiError(err, mode, type, cursor_string, osuAPIStartTime) {
+    const osuAPIEndTime = process.hrtime(osuAPIStartTime);
+    const osuAPIDuration = osuAPIEndTime[0] + osuAPIEndTime[1] / 1e9;
+
+    observeOsuApiRequestDuration(osuAPIDuration, mode, err.response?.status || "Unknown");
+
+    if (retries[mode][type] < 4) {
+        console.log(err);
+        console.log("Retry: " + retries[mode][type]);
+        retries[mode][type]++;
+        await sleep(1000 * (retries[mode][type] * 10));
+        fullRankingsUpdate(mode, type, cursor_string);
+    } else {
+        console.log("Max retries reached, giving up.");
+        retries[mode][type] = 0;
+        done = true;
+    }
 }
 
 let m = -1;

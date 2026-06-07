@@ -108,7 +108,7 @@ async function getPeakRank(user_id, mode) {
     observeDbQueryDuration(duration, "getPeakRank");
 
     let rank_highest = rows[0]?.rank
-        ? { rank: rows[0].rank, updated_at: rows[0].updated_at }
+        ? { rank: rows[0].rank, updated_at: rows[0].achieved_at }
         : null;
     return rank_highest;
 }
@@ -130,13 +130,13 @@ async function getRankHistory(user_id, mode) {
     const duration = endTime[0] + endTime[1] / 1e9;
     observeDbQueryDuration(duration, "getRankHistory");
 
-    if (!rows[0]?.rank_history || !rows[0]?.updated_at) {
+    if (!rows[0]?.rank_history || !rows[0]?.latest_rank_date) {
         return null;
     }
 
     let rank_history = [];
 
-    let current_date = new Date(rows[0].updated_at);
+    let current_date = new Date(rows[0].latest_rank_date);
     for (let i = rows[0].rank_history.length - 1; i >= 0; i--) {
         rank_history.push({
             rank: rows[0].rank_history[i],
@@ -223,7 +223,7 @@ async function main() {
         let users = req.params.users.split(",");
         let scores = req.query.score?.split(",") ?? [];
 
-        if (["username", "user_id"].includes(req.query.s) == -1 || req.query.s == undefined) {
+        if (!req.query.s || !["username", "user_id"].includes(req.query.s)) {
             req.query.s = "user_id";
         }
 
@@ -240,6 +240,7 @@ async function main() {
             if (req.query.s == "username") {
                 user_id = await redisClient.hget("username_to_user_id", user);
             } else {
+                // no validation to allow old `rank_highest` entries for users outside redis cache
                 user_id = user;
             }
 
