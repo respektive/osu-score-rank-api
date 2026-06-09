@@ -21,17 +21,17 @@ async function updateRankHistory() {
             const users = await redisClient.zrevrange(`score_${MODES[i]}`, 0, -1);
             for (const [index, user_id] of users.entries()) {
                 const rows = await conn.query(
-                    "SELECT rank_history, updated_at FROM osu_score_rank_history WHERE user_id = ? AND mode = ? ",
-                    [user_id, i]
+                    "SELECT rank_history, latest_rank_date FROM osu_score_rank_history WHERE user_id = ? AND mode = ? ",
+                    [user_id, i],
                 );
 
                 let rank_history;
-                if (!rows[0]?.updated_at) {
+                if (!rows[0]?.latest_rank_date) {
                     rank_history = [];
                 } else {
                     const days_since_last_update = Math.floor(
-                        (today - new Date(Date.parse(rows[0].updated_at)).setHours(0, 0, 0, 0)) /
-                            (1000 * 60 * 60 * 24)
+                        (today - new Date(Date.parse(rows[0].latest_rank_date)).setHours(0, 0, 0, 0)) /
+                            (1000 * 60 * 60 * 24),
                     );
                     if (days_since_last_update >= 90) {
                         // if the last update was over 90 days ago we can just reset the rank history
@@ -54,7 +54,7 @@ async function updateRankHistory() {
 
                 const res = await conn.query(
                     "INSERT INTO osu_score_rank_history (user_id, mode, rank_history) VALUES (?, ?, json_compact(?)) ON DUPLICATE KEY UPDATE rank_history=json_compact(?)",
-                    [user_id, i, JSON.stringify(rank_history), JSON.stringify(rank_history)]
+                    [user_id, i, JSON.stringify(rank_history), JSON.stringify(rank_history)],
                 );
             }
         }
