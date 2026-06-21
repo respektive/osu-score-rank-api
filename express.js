@@ -106,7 +106,7 @@ async function getPeakRank(user_id, mode) {
     const duration = endTime[0] + endTime[1] / 1e9;
     observeDbQueryDuration(duration, "getPeakRank");
 
-    let rank_highest = rows[0]?.rank
+    const rank_highest = rows[0]?.rank
         ? { rank: rows[0].rank, updated_at: rows[0].achieved_at }
         : null;
     return rank_highest;
@@ -133,9 +133,9 @@ async function getRankHistory(user_id, mode) {
         return null;
     }
 
-    let rank_history = [];
+    const rank_history = [];
 
-    let current_date = new Date(rows[0].latest_rank_date);
+    const current_date = new Date(rows[0].latest_rank_date);
     for (let i = rows[0].rank_history.length - 1; i >= 0; i--) {
         rank_history.push({
             rank: rows[0].rank_history[i],
@@ -150,14 +150,14 @@ async function getRankHistory(user_id, mode) {
 }
 
 async function getUserAtRank(rank, mode) {
-    let rank_user = await redisClient.zrevrange(
+    const rank_user = await redisClient.zrevrange(
         `score_${mode}`,
         rank - 1,
         rank - 1,
         "WITHSCORES"
     );
 
-    let data = {};
+    const data = {};
 
     for (let i = 0; i < rank_user.length; i += 2) {
         data["rank"] = parseInt(rank);
@@ -195,9 +195,8 @@ async function main() {
     );
 
     api.get("/rank/*", async (req, res) => {
-        let mode = parseMode(req.query.mode, req.query.m);
-
-        let rank = req.path.split("/").pop();
+        const mode = parseMode(req.query.mode, req.query.m);
+        const rank = req.path.split("/").pop();
 
         if (!isNumeric(rank)) {
             res.status(400);
@@ -217,22 +216,21 @@ async function main() {
     });
 
     api.get("/u/:users", async (req, res) => {
-        let mode = parseMode(req.query.mode, req.query.m);
-        let users = req.params.users.split(",");
-        let scores = req.query.score?.split(",") ?? [];
+        const mode = parseMode(req.query.mode, req.query.m);
+        const users = req.params.users.split(",");
+        const scores = req.query.score?.split(",") ?? [];
 
         if (!req.query.s || !["username", "user_id"].includes(req.query.s)) {
             req.query.s = "user_id";
         }
-
-        let results = [];
 
         if (users.length > 100) {
             res.status(400);
             res.json({ error: "Too many users. Max limit is 100." });
             return;
         }
-
+        
+        const results = [];
         for (const [index, user] of users.entries()) {
             let user_id;
             if (req.query.s == "username") {
@@ -248,10 +246,10 @@ async function main() {
                 return;
             }
 
-            let rank_highest = await getPeakRank(user_id, mode);
-            let rank_history = await getRankHistory(user_id, mode);
+            const rank_highest = await getPeakRank(user_id, mode);
+            const rank_history = await getRankHistory(user_id, mode);
 
-            let username = await redisClient.hget("user_id_to_username", user_id);
+            const username = await redisClient.hget("user_id_to_username", user_id);
 
             let score, rank;
 
@@ -297,7 +295,7 @@ async function main() {
                     score: prevRaw.score
             };
 
-            let data = {
+            const data = {
                 rank: rank == null ? 0 : rank + 1,
                 user_id: parseInt(user_id) || 0,
                 username: username || 0,
@@ -315,7 +313,7 @@ async function main() {
     });
 
     api.get("/rankings", async (req, res) => {
-        let mode = parseMode(req.query.mode, req.query.m);
+        const mode = parseMode(req.query.mode, req.query.m);
 
         if (
             req.query.page > 200 ||
@@ -326,15 +324,15 @@ async function main() {
             req.query.page = 1;
         }
 
-        let start_rank = (req.query.page - 1) * 50;
-        let rankings = await redisClient.zrevrange(
+        const start_rank = (req.query.page - 1) * 50;
+        const rankings = await redisClient.zrevrange(
             `score_${mode}`,
             start_rank,
             start_rank + 49,
             "WITHSCORES"
         );
 
-        let lb = {};
+        const lb = {};
         let r = 0;
 
         for (let i = 0; i < rankings.length; i += 2) {
