@@ -19,6 +19,7 @@ const MODES = {
     fruits: 2,
     mania: 3,
 };
+const MAX_USERS_PER_REQUEST = 100;
 
 const api = express();
 const port = config.api.port;
@@ -217,16 +218,16 @@ async function main() {
 
     api.get("/u/:users", async (req, res) => {
         const mode = parseMode(req.query.mode, req.query.m);
-        const users = req.params.users.split(",");
+        const users = new Set(req.params.users.split(","));
         const scores = req.query.score?.split(",") ?? [];
 
         if (!req.query.s || !["username", "user_id"].includes(req.query.s)) {
             req.query.s = "user_id";
         }
 
-        if (users.length > 100) {
+        if (users.size > MAX_USERS_PER_REQUEST) {
             res.status(400);
-            res.json({ error: "Too many users. Max limit is 100." });
+            res.json({ error: `Too many users. The limit is ${MAX_USERS_PER_REQUEST}.` });
             return;
         }
         
