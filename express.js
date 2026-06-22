@@ -353,7 +353,7 @@ async function main() {
 }
 
 main();
-if (config.metrics.port > 0) {
+if (config.metrics.port > 0)
     metricsServer(config.metrics.port);
-}
+
 require("./fetcher");

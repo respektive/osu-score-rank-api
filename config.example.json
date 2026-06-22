@@ -1,7 +1,8 @@
 {
     "osu": {
         "id": 1337,
-        "secret": "someverylongstring"
+        "secret": "someverylongstring",
+        "enable_fetch": true
     },
     "api": {
         "port": 727

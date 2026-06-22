@@ -255,6 +255,7 @@ function updateAll() {
 }
 
 function startFetch() {
+    if(!config.osu.enable_fetch) return;
     updateAll();
     setInterval(updateAll, 480 * 1000);
 }
