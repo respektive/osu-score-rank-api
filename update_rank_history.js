@@ -1,6 +1,7 @@
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
+const { getUserRankHistories, MS_IN_DAY } = require("./helpers");
 const mariadb = require("mariadb");
 const pool = mariadb.createPool({
     host: config.db.host,
@@ -8,9 +9,7 @@ const pool = mariadb.createPool({
     password: config.db.pw,
     database: config.db.db,
     connectionLimit: 15,
-});
-
-const MODES = ["osu", "taiko", "fruits", "mania"];
+})
 
 async function updateRankHistory() {
     const today = new Date().setHours(0, 0, 0, 0);
@@ -19,19 +18,16 @@ async function updateRankHistory() {
         conn = await pool.getConnection();
         for (let i = 0; i < MODES.length; i++) {
             const users = await redisClient.zrevrange(`score_${MODES[i]}`, 0, -1);
+            const rows = await getUserRankHistories(users, i);
             for (const [index, user_id] of users.entries()) {
-                const rows = await conn.query(
-                    "SELECT rank_history, latest_rank_date FROM osu_score_rank_history WHERE user_id = ? AND mode = ? ",
-                    [user_id, i],
-                );
+                const row = rows[user_id];
 
                 let rank_history;
-                if (!rows[0]?.latest_rank_date) {
+                if (!row?.latest_rank_date) {
                     rank_history = [];
                 } else {
                     const days_since_last_update = Math.floor(
-                        (today - new Date(Date.parse(rows[0].latest_rank_date)).setHours(0, 0, 0, 0)) /
-                            (1000 * 60 * 60 * 24),
+                        (today - new Date(Date.parse(row.latest_rank_date)).setHours(0, 0, 0, 0)) / MS_IN_DAY,
                     );
                     if (days_since_last_update >= 90) {
                         // if the last update was over 90 days ago we can just reset the rank history
@@ -40,7 +36,7 @@ async function updateRankHistory() {
                         // this should never happen, but doesn't hurt to have as a safety guard i guess?
                         continue;
                     } else {
-                        rank_history = rows[0].rank_history;
+                        rank_history = row.rank_history;
                         // set days without data to null
                         for (let j = 1; j < days_since_last_update; j++) {
                             rank_history.push(null);
