@@ -3,7 +3,7 @@ const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
 const { metricsServer, observeDbQueryDuration, observeRequestDuration } = require("./metrics");
-const { getPeakRank, getRankHistory, isNumeric, isEmpty, resolveModeName, guessOriginFromRequestHeaders, MAX_USERS_PER_REQUEST } = require("./helpers");
+const { getPeakRank, getRankHistory, isStringInteger, isEmpty, resolveModeName, guessOriginFromRequestHeaders, MAX_USERS_PER_REQUEST } = require("./helpers");
 const responseTime = require("response-time");
 const mariadb = require("mariadb");
 const pool = mariadb.createPool({
@@ -65,7 +65,7 @@ async function main() {
         const mode = resolveModeName(req.query.mode, req.query.m);
         const rank = req.path.split("/").pop();
 
-        if (!isNumeric(rank)) {
+        if (!isStringInteger(rank)) {
             res.status(400);
             res.json({ error: "Invalid Rank" });
             return;
@@ -101,7 +101,7 @@ async function main() {
                     ? await redisClient.hget("username_to_user_id", user)
                     : user;
 
-            if (!isNumeric(userId)) {
+            if (!isStringInteger(userId)) {
                 res.status(400);
                 res.json({ error: "Invalid User" });
                 return;
@@ -121,7 +121,7 @@ async function main() {
 
             let score, rank;
             if (scores[index] != undefined) {
-                if (!isNumeric(scores[index])) {
+                if (!isStringInteger(scores[index])) {
                     res.status(400);
                     res.json({ error: "Invalid Score" });
                     return;

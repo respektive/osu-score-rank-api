@@ -68,9 +68,9 @@ function guessOriginFromRequestHeaders(req) {
   }
 }
 
-function isNumeric(str) {
+function isStringInteger(str) {
   if (typeof str != "string") return false;
-  return !isNaN(str) && !isNaN(parseFloat(str));
+  return !isNaN(str) && !isNaN(parseFloat(str)) && parseFloat(str) == parseInt(str, 10);
 }
 
 function isEmpty(object) {
@@ -161,7 +161,7 @@ async function getRankHistory(userIds, mode) {
 
 module.exports = {
   guessOriginFromRequestHeaders,
-  isNumeric,
+  isStringInteger,
   isEmpty,
   sleep,
   resolveModeName,
