@@ -1,7 +1,7 @@
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
-const { getUserRankHistories, MS_IN_DAY } = require("./helpers");
+const { getUserRankHistories, MS_IN_DAY, MODE_ENUM } = require("./helpers");
 const mariadb = require("mariadb");
 const pool = mariadb.createPool({
     host: config.db.host,
@@ -16,8 +16,8 @@ async function updateRankHistory() {
     let conn;
     try {
         conn = await pool.getConnection();
-        for (let i = 0; i < MODES.length; i++) {
-            const users = await redisClient.zrevrange(`score_${MODES[i]}`, 0, -1);
+        for (let i = 0; i < MODE_ENUM.length; i++) {
+            const users = await redisClient.zrevrange(`score_${MODE_ENUM[i]}`, 0, -1);
             const rows = await getUserRankHistories(users, i);
             for (const [index, user_id] of users.entries()) {
                 const row = rows[user_id];

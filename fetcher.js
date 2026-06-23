@@ -1,6 +1,7 @@
 const Redis = require("ioredis");
 const redisClient = new Redis();
 const config = require("./config");
+const { sleep, MODE_ENUM } = require("./helpers");
 const { observeDbQueryDuration, observeOsuApiRequestDuration } = require("./metrics");
 const mariadb = require("mariadb");
 const pool = mariadb.createPool({
@@ -13,18 +14,8 @@ const pool = mariadb.createPool({
 
 const API_URL = "https://osu.ppy.sh/api/v2";
 const AUTH_URL = "https://osu.ppy.sh/oauth/token";
-const MODES = {
-    osu: 0,
-    taiko: 1,
-    fruits: 2,
-    mania: 3,
-};
 
-let token;
-let entries = 0;
-let refresh = 0;
-let user_ids = [];
-let retries = {
+const retries = {
     osu: {
         score: 0,
     },
@@ -38,9 +29,11 @@ let retries = {
         score: 0,
     },
 };
+let token;
+let entries = 0;
+let refresh = 0;
+let user_ids = [];
 let done = true;
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function buildRankingApiUrl(mode, type, cursor_string) {
     const url = new URL(`${API_URL}/rankings/${mode}/${type}`);
@@ -64,9 +57,8 @@ async function refreshToken() {
             }),
         })
         .then((res) => {
-            if(!res.ok) {
+            if(!res.ok)
                 throw new Error(`Token refresh failed: ${res.status} ${res.statusText}`);
-            }
 
             res.json()
             .then((data) => {
@@ -81,9 +73,8 @@ async function refreshToken() {
 
 async function fullRankingsUpdate(mode, type, cursor_string) {
     let conn;
-    if (Date.now() > refresh - 5 * 60 * 1000) {
+    if (Date.now() > refresh - 5 * 60 * 1000)
         token = await refreshToken();
-    }
 
     const osuAPIStartTime = process.hrtime();
     fetch(
@@ -103,8 +94,6 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
 
             let i = 0;
 
-            // console.log("Adding " + data.ranking.length + " Entries to the db");
-
             await data.ranking.forEach(async (elem) => {
                 i++;
                 entries++;
@@ -123,7 +112,7 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                     const user_data = elem;
                     const res = await conn.query(
                         "INSERT INTO osu_score_user_data (user_id, mode, user_data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_data=?, updated_at=current_timestamp()",
-                        [id, MODES[mode], user_data, user_data],
+                        [id, MODE_ENUM[mode], user_data, user_data],
                     );
 
                     const insertUserDataEndTime = process.hrtime(insertUserDataStartTime);
@@ -134,7 +123,7 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                     const selectStartTime = process.hrtime();
                     const rows = await conn.query(
                         "SELECT rank FROM osu_score_rank_highest WHERE user_id = ? AND mode = ?",
-                        [id, MODES[mode]],
+                        [id, MODE_ENUM[mode]],
                     );
 
                     const selectEndTime = process.hrtime(selectStartTime);
@@ -147,23 +136,15 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
 
                         const res = await conn.query(
                             "INSERT INTO osu_score_rank_highest (user_id, mode, rank) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rank=?",
-                            [id, MODES[mode], rank + 1, rank + 1],
+                            [id, MODE_ENUM[mode], rank + 1, rank + 1],
                         );
 
                         const insertEndTime = process.hrtime(insertStartTime);
                         const duration = insertEndTime[0] + insertEndTime[1] / 1e9;
                         observeDbQueryDuration(duration, "insertPeakRank");
-                        // console.log(
-                        //     "Added new highest rank",
-                        //     rank + 1,
-                        //     "for user",
-                        //     elem.user.username,
-                        //     "and mode",
-                        //     mode
-                        // );
                     }
                 } finally {
-                    if (conn) conn.end();
+                    conn?.end();
                 }
             });
 
@@ -172,7 +153,6 @@ async function fullRankingsUpdate(mode, type, cursor_string) {
                 await sleep(1000);
                 fullRankingsUpdate(mode, type, cursor_string);
                 retries[mode][type] = 0;
-                // console.log("Added a total of " + entries + " to the db score_" + mode);
             } else {
                 // Remove restricted and otherwise deleted users from the api.
                 const redis_users = await redisClient.zrange(`score_${mode}`, 0, -1);
@@ -225,9 +205,7 @@ function updateAll() {
     }
 
     m++;
-    if (m > 3) {
-        m = 0;
-    }
+    if (m > 3) m = 0;
 
     switch (m) {
         default:

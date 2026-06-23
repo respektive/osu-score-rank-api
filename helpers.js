@@ -44,6 +44,8 @@ function resolveModeId(mode) {
   return MODE_ENUM[mode] ?? 0;
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function guessOriginFromRequestHeaders(req) {
   // if its set its probably a browser, also osu subdivide nations extension usually has this set
   if (req.get("referer")) return "browser";
@@ -67,15 +69,13 @@ function guessOriginFromRequestHeaders(req) {
 }
 
 function isNumeric(str) {
-    if (typeof str != "string") return false;
-    return !isNaN(str) && !isNaN(parseFloat(str));
+  if (typeof str != "string") return false;
+  return !isNaN(str) && !isNaN(parseFloat(str));
 }
 
 function isEmpty(object) {
-    for (const property in object) {
-        return false;
-    }
-    return true;
+  for (const property in object) return false;
+  return true;
 }
 
 async function getUserRankHistories(userIds, mode) {
@@ -163,11 +163,14 @@ module.exports = {
   guessOriginFromRequestHeaders,
   isNumeric,
   isEmpty,
+  sleep,
   resolveModeName,
   resolveModeId,
   getUserRankHistories,
   getPeakRank,
   getRankHistory,
   MAX_USERS_PER_REQUEST,
-  MS_IN_DAY
+  MS_IN_DAY,
+  MODE_ENUM,
+  MODE_NAMES
 };
