@@ -48,9 +48,7 @@ function metricsServer(port) {
 		res.send(await register.metrics());
 	});
 
-	app.listen(port, () => {
-		console.log(`metrics server started on port ${port}`);
-	});
+	app.listen(port, () => console.log(`metrics server started on port ${port}`));
 }
 
 module.exports = {

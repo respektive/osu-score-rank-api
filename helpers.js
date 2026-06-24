@@ -113,8 +113,6 @@ async function getPeakRank(userIds, mode) {
 		);
 
 		const result = {};
-		for (const id of userIds) result[id] = null;
-
 		for (const row of rows) {
 			result[row.user_id] = {
 				rank: row.rank,
