@@ -64,10 +64,9 @@ async function main() {
 		})
 	);
 
-	api.get("/rank/*", async (req, res) => {
+	api.get("/rank/:rank", async (req, res) => {
 		const mode = resolveModeName(req.query.mode, req.query.m);
-		const rank = req.path.split("/").pop();
-
+		const rank = req.params.rank;
 		if (!isStringInteger(rank)) {
 			res.status(400);
 			res.json({ error: "Invalid Rank" });
@@ -75,7 +74,6 @@ async function main() {
 		}
 
 		const data = await getUserAtRank(rank, mode);
-
 		if (isEmpty(data)) {
 			res.status(200);
 			res.json([{ rank: 0, user_id: 0, username: 0, score: 0 }]);
