@@ -230,7 +230,13 @@ function updateAll() {
 }
 
 function startFetch() {
-	if (!config.osu.enable_fetch) return;
+	if (!config.osu.enable_fetch) {
+		console.log(
+			"osu! API fetching is disabled - set osu.enable_fetch in config.json to truthy if you wish to start gathering new data"
+		);
+		return;
+	}
+
 	updateAll();
 	setInterval(updateAll, 480 * 1000);
 }

@@ -88,6 +88,7 @@ async function main() {
 	api.get("/u/:users", async (req, res) => {
 		const mode = resolveModeName(req.query.mode, req.query.m);
 		const scores = req.query.score?.split(",") ?? [];
+		// FIXME: The deduplication here means the scores array can desync from userIds - low prio since specifying the same id multiple ids is an user error anyway
 		const users = [...new Set(req.params.users.split(","))];
 		if (users.length > MAX_USERS_PER_REQUEST) {
 			res.status(400);

@@ -21,10 +21,10 @@ const MODE_ENUM = {
 	mania: 3
 };
 
-function resolveModeName(mode, m) {
-	if (m == null) return !MODE_NAMES.includes(mode) ? "osu" : mode;
+function resolveModeName(modeName, modeId) {
+	if (modeId == null) return !MODE_NAMES.includes(modeName) ? "osu" : modeName;
 
-	switch (m) {
+	switch (modeId) {
 		case "0":
 			return "osu";
 		case "1":
@@ -58,9 +58,9 @@ function guessOriginFromRequestHeaders(req) {
 			return "flowabot";
 		case "bathbot-client":
 			return "bathbot";
-		// this isnt ideal, but osu-tracker isnt using any custom headers, so we can just assume by the user agent
 		case "axios/0.27.2":
 		case "osu-tracker":
+			// this isn't ideal, but old osu-tracker versions weren't setting any custom user-agent header, so we can just assume by the axios version
 			return "osu-tracker";
 		default:
 			return "other";
