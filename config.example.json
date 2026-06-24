@@ -1,19 +1,19 @@
 {
-    "osu": {
-        "id": 1337,
-        "secret": "someverylongstring",
-        "enable_fetch": true
-    },
-    "api": {
-        "port": 727
-    },
-    "db": {
-        "host": "localhost",
-        "user": "score",
-        "pw": "pw",
-        "db": "osu"
-    },
-    "metrics": {
-        "port": 72727
-    }
+	"osu": {
+		"id": 1337,
+		"secret": "someverylongstring",
+		"enable_fetch": true
+	},
+	"api": {
+		"port": 727
+	},
+	"db": {
+		"host": "localhost",
+		"user": "score",
+		"pw": "pw",
+		"db": "osu"
+	},
+	"metrics": {
+		"port": 72727
+	}
 }

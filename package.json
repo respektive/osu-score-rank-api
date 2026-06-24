@@ -1,19 +1,19 @@
 {
-  "name": "osu-score-rank-api",
-  "version": "1.0.0",
-  "description": "osu! score rankings mirror with api endpoints hosted at https://score.respektive.pw/",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "respektive",
-  "license": "MIT",
-  "dependencies": {
-    "express": "^4.22.2",
-    "express-status-monitor": "^1.3.4",
-    "ioredis": "^5.11.1",
-    "mariadb": "^3.5.3",
-    "prom-client": "^15.1.3",
-    "response-time": "^2.3.4"
-  }
+	"name": "osu-score-rank-api",
+	"version": "1.0.0",
+	"description": "osu! score rankings mirror with api endpoints hosted at https://score.respektive.pw/",
+	"main": "index.js",
+	"scripts": {
+		"format": "prettier --write ."
+	},
+	"author": "respektive",
+	"license": "MIT",
+	"dependencies": {
+		"express": "^4.22.2",
+		"express-status-monitor": "^1.3.4",
+		"ioredis": "^5.11.1",
+		"mariadb": "^3.5.3",
+		"prom-client": "^15.1.3",
+		"response-time": "^2.3.4"
+	}
 }
