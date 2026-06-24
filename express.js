@@ -178,11 +178,9 @@ async function main() {
 
 	api.get("/rankings", async (req, res) => {
 		const mode = resolveModeName(req.query.mode, req.query.m);
+		const page = (isStringInteger(req.query.page) && req.query.page <= 200 && req.query.page >= 1) ? req.query.page : 1;
 
-		if (req.query.page > 200 || req.query.page < 1 || req.query.page == undefined || isNaN(req.query.page))
-			req.query.page = 1;
-
-		const startRank = (req.query.page - 1) * 50;
+		const startRank = (page - 1) * 50;
 		const rankings = await redisClient.zrevrange(`score_${mode}`, startRank, startRank + 49, "WITHSCORES");
 
 		const lb = {};
